@@ -5,29 +5,32 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
-import java.util.Map;
 
 @Component
 class GithubClient {
 
     private final RestClient restClient;
 
-    GithubClient(@Value("${github.api.url:https://api.github.com}") String baseUrl) {
-        this.restClient = RestClient.create(baseUrl);
+    GithubClient(
+            final RestClient.Builder builder,
+            @Value("${github.api.url:https://api.github.com}") final String baseUrl
+    ) {
+        this.restClient = builder
+                .baseUrl(baseUrl)
+                .build();
     }
 
-
-    List<Map<String, Object>> getRepositories(String user) {
+    List<GithubRepository> getRepositories(final String username) {
         return restClient.get()
-                .uri("/users/{user}/repos", user)
+                .uri("/users/{username}/repos", username)
                 .retrieve()
-                .body(List.class);
+                .body(new org.springframework.core.ParameterizedTypeReference<>() {});
     }
 
-    List<Map<String, Object>> getBranches(String user, String repo) {
+    List<GithubBranch> getBranches(final String username, final String repositoryName) {
         return restClient.get()
-                .uri("/repos/{user}/{repo}/branches", user, repo)
+                .uri("/repos/{username}/{repo}/branches", username, repositoryName)
                 .retrieve()
-                .body(List.class);
+                .body(new org.springframework.core.ParameterizedTypeReference<>() {});
     }
 }

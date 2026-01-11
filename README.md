@@ -1,38 +1,38 @@
 # GitHub Proxy API
 
-Prosta aplikacja REST w **Java 25 + Spring Boot 4**, działająca jako proxy do **GitHub REST API v3**.  
-Aplikacja udostępnia endpoint pozwalający pobrać repozytoria użytkownika GitHuba (z wyłączeniem forków) wraz z informacjami o branchach i ostatnich commitach.
+A simple REST application built with **Java 25** and **Spring Boot 4**, acting as a proxy for the **GitHub REST API v3**.  
+The application exposes an endpoint that allows fetching a GitHub user's repositories (excluding forks) together with branch information and the latest commit SHA.
 
 ---
 
-## Uruchomienie aplikacji
+## Running the application
 
-### Wymagania
+### Requirements
 - Java 25
-- Gradle (wrapper w projekcie)
+- Gradle (wrapper included in the project)
 
-### Start aplikacji
+### Start the application
 ```bash
 ./gradlew bootRun
 ```
 
-Aplikacja uruchamia się domyślnie na: http://localhost:8080
+The application starts by default at: http://localhost:8080
 
 ### Endpoint API
-Pobranie repozytoriów użytkownika
+Fetch user repositories
 GET /users/{username}/repositories
 http://localhost:8080/users/octocat/repositories
 
-Odpowiedź 200 OK
-**Opis**  
-Lista repozytoriów (bez forków) zawierająca:
-- `repositoryName` – nazwa repozytorium
-- `ownerLogin` – login właściciela
+Response – 200 OK
+**Description**  
+Returns a list of repositories that are not forks, including:
+- `repositoryName` – repository name
+- `ownerLogin` – repository owner login
 - `branches`
-    - `name` – nazwa brancha
-    - `lastCommitSha` – SHA ostatniego commita
+    - `name` – branch name
+    - `lastCommitSha` – last commit SHA
 
-**Przykładowa odpowiedź**
+**Example response**
 ```json
 [
   {
@@ -49,8 +49,8 @@ Lista repozytoriów (bez forków) zawierająca:
 ```
 
 
-Odpowiedź – 404 Not Found
-http://localhost:8080/users/uzytkownik-nieistnieje/repositories
+Response – 404 Not Found
+http://localhost:8080/users/non-existing-user/repositories
 ```json
 {
   "status": 404,
@@ -58,25 +58,26 @@ http://localhost:8080/users/uzytkownik-nieistnieje/repositories
 }
 ```
 
-### Testy
-- Zaimplementowano wyłącznie testy integracyjne
-- Brak mocków — użyto WireMock do emulacji GitHub API
-- Testowane scenariusze:
-- poprawne pobranie repozytoriów i branchy
-- obsługa nieistniejącego użytkownika (404)
-Uruchomienie testów:
+### Tests
+- Integration tests are implemented
+- WireMock is used to emulate the GitHub API (no real external calls)
+- Tested scenarios:
+  - successful retrieval of repositories and branches
+  - handling of a non-existing user (404)
+
+Run tests using:
 ```bash
 ./gradlew test
 ```
 
-### Decyzje projektowe
-- Architektura: Controller / Service / Client
-- Wszystkie klasy w jednym pakiecie (zgodnie z wymaganiami)
-- Brak DTO — aplikacja działa jako proxy
-- Brak WebFlux, security, cache, paginacji
-- Minimalna liczba klas i testów
+### Design decisions
+- Architecture: Controller / Service / Client
+- All classes are located in a single package (as required)
+- No separate DTO/domain layers — simple immutable records are used as proxy models
+- No WebFlux, security, caching, or pagination
+- Minimal number of classes and tests
 
 ### Backing API
-Aplikacja korzysta z:
+The application uses:
 - GitHub REST API v3
-- Dokumentacja: https://developer.github.com/v3
+- The application uses:: https://developer.github.com/v3

@@ -1,39 +1,50 @@
 package com.github.proxy;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Service
 class GithubService {
 
-    private final GithubClient client;
+    private final GithubClient githubClient;
 
-    GithubService(GithubClient client) {
-        this.client = client;
+    GithubService(final GithubClient githubClient) {
+        this.githubClient = githubClient;
     }
 
-    List<Map<String, Object>> getNonForkRepositories(String user) {
-        List<Map<String, Object>> repos = client.getRepositories(user);
-        List<Map<String, Object>> result = new ArrayList<>();
+    List<RepositoryResponse> getUserRepositories(final String username) {
+        final List<GithubRepository> repositories;
 
-        for (Map<String, Object> repo : repos) {
-            if (Boolean.FALSE.equals(repo.get("fork"))) {
-                String repoName = (String) repo.get("name");
-                List<Map<String, Object>> branches = client.getBranches(user, repoName);
-
-                result.add(Map.of(
-                        "repositoryName", repoName,
-                        "ownerLogin", ((Map<?, ?>) repo.get("owner")).get("login"),
-                        "branches", branches.stream().map(b -> Map.of(
-                                "name", b.get("name"),
-                                "lastCommitSha", ((Map<?, ?>) b.get("commit")).get("sha")
-                        )).toList()
-                ));
-            }
+        try {
+            repositories = githubClient.getRepositories(username);
+        } catch (HttpClientErrorException.NotFound ex) {
+            throw new UserNotFoundException(username);
         }
-        return result;
+
+        return repositories.stream()
+                .filter(repo -> !repo.fork())
+                .map(repo -> mapToRepositoryResponse(username, repo))
+                .toList();
+    }
+
+    private RepositoryResponse mapToRepositoryResponse(
+            final String username,
+            final GithubRepository repository
+    ) {
+        final var branches = githubClient.getBranches(username, repository.name())
+                .stream()
+                .map(branch -> new BranchResponse(
+                        branch.name(),
+                        branch.commit().sha()
+                ))
+                .toList();
+
+        return new RepositoryResponse(
+                repository.name(),
+                repository.owner().login(),
+                branches
+        );
     }
 }

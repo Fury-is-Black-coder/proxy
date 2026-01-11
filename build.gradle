@@ -23,6 +23,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'com.github.tomakehurst:wiremock-standalone:3.0.1'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'org.skyscreamer:jsonassert:1.5.1'
 }
 
 tasks.named('test') {

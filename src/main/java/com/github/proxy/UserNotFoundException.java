@@ -1,7 +1,8 @@
 package com.github.proxy;
 
 class UserNotFoundException extends RuntimeException {
-    UserNotFoundException(String message) {
-        super(message);
+
+    UserNotFoundException(final String username) {
+        super("User not found: " + username);
     }
 }

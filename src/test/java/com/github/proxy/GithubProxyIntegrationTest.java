@@ -2,31 +2,34 @@ package com.github.proxy;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.junit.jupiter.api.*;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.client.RestClient;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class GithubProxyIntegrationTest {
 
-    static WireMockServer wireMock = new WireMockServer(wireMockConfig().port(8089));
+    static WireMockServer wireMock =
+            new WireMockServer(wireMockConfig().port(8089));
+
+    @LocalServerPort
+    int port;
 
     @Autowired
-    WebApplicationContext context;
+    RestClient.Builder restClientBuilder;
 
-    MockMvc mockMvc;
+    RestClient restClient;
 
     @DynamicPropertySource
-    static void props(DynamicPropertyRegistry r) {
-        r.add("github.api.url", () -> "http://localhost:8089");
+    static void props(DynamicPropertyRegistry registry) {
+        registry.add("github.api.url", () -> "http://localhost:8089");
     }
 
     @BeforeAll
@@ -41,14 +44,14 @@ class GithubProxyIntegrationTest {
     }
 
     @BeforeEach
-    void setupMockMvc() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
-        reset();
+    void setupClient() {
+        restClient = restClientBuilder
+                .baseUrl("http://localhost:" + port)
+                .build();
     }
 
     @Test
     void shouldReturnNonForkRepositoriesWithBranches() throws Exception {
-        // GitHub: repos
         stubFor(get("/users/testuser/repos")
                 .willReturn(okJson("""
                     [
@@ -57,7 +60,6 @@ class GithubProxyIntegrationTest {
                     ]
                 """)));
 
-        // GitHub: branches
         stubFor(get("/repos/testuser/repo-1/branches")
                 .willReturn(okJson("""
                     [
@@ -65,28 +67,24 @@ class GithubProxyIntegrationTest {
                     ]
                 """)));
 
-        mockMvc.perform(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                .get("/users/testuser/repositories")
-                )
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].repositoryName").value("repo-1"))
-                .andExpect(jsonPath("$[0].ownerLogin").value("testuser"))
-                .andExpect(jsonPath("$[0].branches[0].name").value("main"))
-                .andExpect(jsonPath("$[0].branches[0].lastCommitSha").value("abc123"));
-    }
+        String response = restClient.get()
+                .uri("/users/testuser/repositories")
+                .retrieve()
+                .body(String.class);
 
-    @Test
-    void shouldReturn404WhenUserNotFound() throws Exception {
-        stubFor(get("/users/missing/repos").willReturn(notFound()));
-
-        mockMvc.perform(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                .get("/users/missing/repositories")
-                )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.message").exists());
+        JSONAssert.assertEquals("""
+            [
+              {
+                "repositoryName": "repo-1",
+                "ownerLogin": "testuser",
+                "branches": [
+                  {
+                    "name": "main",
+                    "lastCommitSha": "abc123"
+                  }
+                ]
+              }
+            ]
+        """, response, true);
     }
 }

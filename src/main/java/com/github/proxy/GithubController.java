@@ -1,37 +1,24 @@
 package com.github.proxy;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@RequestMapping("/users")
 class GithubController {
 
-    private final GithubService service;
+    private final GithubService githubService;
 
-    GithubController(GithubService service) {
-        this.service = service;
+    GithubController(final GithubService githubService) {
+        this.githubService = githubService;
     }
 
-    @GetMapping("/{username}/repositories")
-    List<Map<String, Object>> repositories(@PathVariable String username) {
-        try {
-            return service.getNonForkRepositories(username);
-        } catch (HttpClientErrorException.NotFound e) {
-            throw new UserNotFoundException("User not found");
-        }
-    }
-
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    @ExceptionHandler(UserNotFoundException.class)
-    Map<String, Object> handle(UserNotFoundException e) {
-        return Map.of(
-                "status", 404,
-                "message", e.getMessage()
-        );
+    @GetMapping("/users/{username}/repositories")
+    List<RepositoryResponse> getRepositories(
+            @PathVariable final String username
+    ) {
+        return githubService.getUserRepositories(username);
     }
 }
